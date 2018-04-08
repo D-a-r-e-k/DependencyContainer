@@ -40,6 +40,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Decorators\DataExporter.cs" />
+    <Compile Include="Decorators\IExporter.cs" />
+    <Compile Include="Decorators\Logger.cs" />
     <Compile Include="ILegislationService.cs" />
     <Compile Include="IVatService.cs" />
     <Compile Include="LegislationService.cs" />
@@ -47,6 +50,12 @@
     <Compile Include="ITaxService.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="VatService.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DContainer.Internals\DContainer.Internals.csproj">
+      <Project>{B481B2EE-ECCA-4F8E-ADD6-BB970E48939D}</Project>
+      <Name>DContainer.Internals</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

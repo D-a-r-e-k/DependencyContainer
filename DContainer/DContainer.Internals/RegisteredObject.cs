@@ -8,7 +8,9 @@ namespace DContainer.Internals
     {
         public Configuration Configuration { get; set; }
 
+        public object Proxy { get; set; }
         public object Instance { get; set; }
+
         public Type TypeToResolve { get; set; }
         public Type ConcreteType { get; set; }
 

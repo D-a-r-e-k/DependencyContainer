@@ -1,12 +1,14 @@
-﻿using System;
+﻿using DContainer.Internals.Attributes;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace DContainer.Internals
 {
     public class SimpleContainer : IContainer
     {
-        private readonly List<RegisteredObject> registeredObjects = new List<RegisteredObject>();
+        private readonly List<RegisteredObject> _registeredObjects = new List<RegisteredObject>();
 
         public void Register<TTypeToResolve, TConcrete>()
         {
@@ -15,12 +17,12 @@ namespace DContainer.Internals
 
         public void Register<TTypeToResolve, TConcrete>(Configuration configuration)
         {
-            registeredObjects.Add(new RegisteredObject(typeof(TTypeToResolve), typeof(TConcrete), configuration));
+            _registeredObjects.Add(new RegisteredObject(typeof(TTypeToResolve), typeof(TConcrete), configuration));
         }
 
         public ITypeToResolve Resolve<ITypeToResolve>()
         {
-            return (ITypeToResolve)(object)ResolveObject(typeof(ITypeToResolve));
+            return (ITypeToResolve)ResolveObject(typeof(ITypeToResolve));
         }
 
         public object Resolve(Type typeToResolve)
@@ -28,34 +30,9 @@ namespace DContainer.Internals
             return ResolveObject(typeToResolve);
         }
 
-        private RegisteredObject GetRegisteredObject(Type typeToResolve)
-        {
-            var registeredObject = registeredObjects.FirstOrDefault(o => o.TypeToResolve == typeToResolve);
-
-            if (registeredObject == null)
-            {
-                throw new Exception(string.Format(
-                    "The type {0} has not been registered", typeToResolve.Name));
-            }
-
-            return registeredObject;
-        }
-
-        private object ResolveObject<T>()
-        {
-            var registeredObject = GetRegisteredObject(typeof(T));
-
-            if (registeredObject.Configuration == Configuration.Lazy)
-            {
-                return DynamicProxy.Create(registeredObject.TypeToResolve, this);
-            }
-
-            return GetInstance(registeredObject);
-        }
-
         private object ResolveObject(Type typeToResolve)
         {
-            var registeredObject = registeredObjects.FirstOrDefault(o => o.TypeToResolve == typeToResolve);
+            var registeredObject = _registeredObjects.FirstOrDefault(o => o.TypeToResolve == typeToResolve);
 
             if (registeredObject == null)
             {
@@ -63,9 +40,18 @@ namespace DContainer.Internals
                     "The type {0} has not been registered", typeToResolve.Name));
             }
 
-            if (registeredObject.Configuration == Configuration.Lazy)
+            var decorateAttribute = registeredObject.ConcreteType.GetCustomAttribute(typeof(DecorateAttribute));
+            var delegateAttribute = registeredObject.ConcreteType.GetCustomAttribute(typeof(DelegateAttribute));
+
+            if ((registeredObject.Configuration == Configuration.Lazy || decorateAttribute != null || delegateAttribute != null)
+                && registeredObject.Proxy == null)
             {
-                return DynamicProxy.Create(registeredObject.TypeToResolve, this);
+                var method = typeof(DynamicProxy).GetMethod("Create", BindingFlags.Static | BindingFlags.Public)
+                                                 .MakeGenericMethod(new Type[] { registeredObject.TypeToResolve });
+
+                registeredObject.Proxy = method.Invoke(null, new object[] { this, delegateAttribute, decorateAttribute });
+
+                return registeredObject.Proxy;
             }
 
             return GetInstance(registeredObject);
@@ -80,7 +66,7 @@ namespace DContainer.Internals
 
                 var propertiesToSet = registeredObject.ConcreteType
                     .GetProperties()
-                    .Where(x => x.CanWrite && registeredObjects.Any(y => y.TypeToResolve == x.PropertyType));
+                    .Where(x => x.CanWrite && _registeredObjects.Any(y => y.TypeToResolve == x.PropertyType));
 
                 foreach (var property in propertiesToSet)
                 {
